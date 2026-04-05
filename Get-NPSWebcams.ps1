@@ -3,7 +3,7 @@
     Retrieves and audits webcam data from the National Park Service (NPS) API.
 
 .DESCRIPTION
-    This script fetches webcam metadata from the NPS API, caches it locally in a JSON file, and provides auditing capabilities to find duplicate IDs, active webcams, inactive webcams, specific titles, or descriptions.
+    This script fetches webcam metadata from the NPS API, caches it locally in a JSON file, and provides auditing capabilities to find duplicate IDs, active webcams, inactive webcams, specific titles, descriptions, or coordinates.
 
 .PARAMETER findDupes
     A switch that, when present, triggers an audit of the cached data to identify and list any duplicate webcam IDs.
@@ -23,8 +23,17 @@
 .PARAMETER findDescription
     A substring to search for within the webcam descriptions. Search is case-insensitive and literal (no wildcards).
 
+.PARAMETER findCredit
+    A substring to search for within the webcam credit field. Search is case-insensitive and literal (no wildcards).
+
 .PARAMETER findStreaming
     A switch that, when present, filters and lists webcams that are currently streaming from the local cache.
+
+.PARAMETER findTag
+    A string to filter webcams by an exact, case-insensitive match within their tags array.
+
+.PARAMETER findLatLong
+    A substring to search for within the webcam latitude and longitude fields. Search is case-insensitive and literal (no wildcards).
 
 .EXAMPLE
     .\Get-NPSWebcams.ps1
@@ -58,6 +67,14 @@
     .\Get-NPSWebcams.ps1 -findStreaming
     Filters and displays all webcams currently streaming from the local cache.
 
+.EXAMPLE
+    .\Get-NPSWebcams.ps1 -findTag "eagle"
+    Finds and displays all webcams that have exactly "eagle" in their tags array.
+
+.EXAMPLE
+    .\Get-NPSWebcams.ps1 -findLatLong "42.896, -122.133"
+    Finds and displays all webcams whose latitude or longitude matches the provided substring.
+
 .NOTES
     Requires the 'NPS_API_KEY' environment variable to be set for API data retrieval.
     The local cache ('nps-webcams.json') is considered valid for the current calendar day.
@@ -75,7 +92,10 @@ Param(
     [string]$findByID,
     [string]$findTitle,
     [string]$findDescription,
-    [switch]$findStreaming
+    [string]$findCredit,
+    [switch]$findStreaming,
+    [string]$findTag,
+    [string]$findLatLong
 )
 
 $ErrorActionPreference = "Stop"
@@ -136,7 +156,8 @@ if ($findDupes) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform duplicate audit."
-    } else {
+    }
+    else {
         Write-Host "Analyzing '$outputFile' for duplicate IDs..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -147,7 +168,8 @@ if ($findDupes) {
             foreach ($dup in $duplicates) {
                 "$($dup.Name) ($($dup.Count))"
             }
-        } else {
+        }
+        else {
             Write-Host "No duplicate IDs found."
         }
     }
@@ -159,7 +181,8 @@ if ($findInactive) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform inactive audit."
-    } else {
+    }
+    else {
         Write-Host "Analyzing '$outputFile' for inactive webcams..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -171,7 +194,8 @@ if ($findInactive) {
                 "[$($cam.id)] $($cam.title)"
             }
             $inactive # Output to success stream
-        } else {
+        }
+        else {
             Write-Host "No inactive webcams found."
         }
     }
@@ -183,7 +207,8 @@ if ($findActive) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform active audit."
-    } else {
+    }
+    else {
         Write-Host "Analyzing '$outputFile' for active webcams..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -195,7 +220,8 @@ if ($findActive) {
                 "[$($cam.id)] $($cam.title)"
             }
             $active # Output to success stream
-        } else {
+        }
+        else {
             Write-Host "No active webcams found."
         }
     }
@@ -207,7 +233,8 @@ if ($findByID) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform ID search."
-    } else {
+    }
+    else {
         Write-Host "Searching '$outputFile' for ID: $findByID..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -216,7 +243,8 @@ if ($findByID) {
         if ($record) {
             Write-Host "Found matching record:"
             $record
-        } else {
+        }
+        else {
             Write-Warning "No webcam found with ID: $findByID"
         }
     }
@@ -228,7 +256,8 @@ if ($findTitle) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform title search."
-    } else {
+    }
+    else {
         Write-Host "Searching '$outputFile' for title containing: $findTitle..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -238,17 +267,18 @@ if ($findTitle) {
         $escapedSearch = [Management.Automation.WildcardPattern]::Escape($findTitle)
         $pattern = "*$escapedSearch*"
         
-        $matches = $data | Where-Object { 
+        $matchingWebcams = $data | Where-Object { 
             $_.title -and ($_.title -like $pattern)
         }
 
-        if ($matches) {
+        if ($matchingWebcams) {
             Write-Host "Matching webcams found:"
-            foreach ($cam in $matches) {
+            foreach ($cam in $matchingWebcams) {
                 "[$($cam.id)] $($cam.title)"
             }
-            $matches # Output to success stream
-        } else {
+            $matchingWebcams # Output to success stream
+        }
+        else {
             Write-Warning "No webcams found with title containing: $findTitle"
         }
     }
@@ -260,7 +290,8 @@ if ($findDescription) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform description search."
-    } else {
+    }
+    else {
         Write-Host "Searching '$outputFile' for description containing: $findDescription..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -270,18 +301,51 @@ if ($findDescription) {
         $escapedSearch = [Management.Automation.WildcardPattern]::Escape($findDescription)
         $pattern = "*$escapedSearch*"
         
-        $matches = $data | Where-Object { 
+        $matchingWebcams = $data | Where-Object { 
             $_.description -and ($_.description -like $pattern)
         }
 
-        if ($matches) {
+        if ($matchingWebcams) {
             Write-Host "Matching webcams found:"
-            foreach ($cam in $matches) {
+            foreach ($cam in $matchingWebcams) {
                 "[$($cam.id)] $($cam.title)"
             }
-            $matches # Output to success stream
-        } else {
+            $matchingWebcams # Output to success stream
+        }
+        else {
             Write-Warning "No webcams found with description containing: $findDescription"
+        }
+    }
+}
+
+# --- Find By Credit ---
+if ($findCredit) {
+    Write-Host "`n--- Find Webcams By Credit ---"
+
+    if (-not (Test-Path $outputFile)) {
+        Write-Warning "Cache file '$outputFile' not found. Cannot perform credit search."
+    }
+    else {
+        Write-Host "Searching '$outputFile' for credit containing: $findCredit..."
+
+        $data = Get-Content $outputFile -Raw | ConvertFrom-Json
+
+        $escapedSearch = [Management.Automation.WildcardPattern]::Escape($findCredit)
+        $pattern = "*$escapedSearch*"
+
+        $matchingWebcams = $data | Where-Object {
+            $_.credit -and ($_.credit -like $pattern)
+        }
+
+        if ($matchingWebcams) {
+            Write-Host "Matching webcams found:"
+            foreach ($cam in $matchingWebcams) {
+                "[$($cam.id)] $($cam.title)"
+            }
+            $matchingWebcams # Output to success stream
+        }
+        else {
+            Write-Warning "No webcams found with credit containing: $findCredit"
         }
     }
 }
@@ -293,7 +357,8 @@ if ($findStreaming) {
 
     if (-not (Test-Path $outputFile)) {
         Write-Warning "Cache file '$outputFile' not found. Cannot perform streaming search."
-    } else {
+    }
+    else {
         Write-Host "Analyzing '$outputFile' for streaming webcams..."
         
         $data = Get-Content $outputFile -Raw | ConvertFrom-Json
@@ -304,8 +369,71 @@ if ($findStreaming) {
             foreach ($cam in $streaming) {
                 "[$($cam.id)] $($cam.title) - $($cam.url)"
             }
-        } else {
+        }
+        else {
             Write-Host "No streaming webcams found."
+        }
+    }
+}
+
+# --- Find By Tag ---
+if ($findTag) {
+    Write-Host "`n--- Find Webcams By Tag ---"
+
+    if (-not (Test-Path $outputFile)) {
+        Write-Warning "Cache file '$outputFile' not found. Cannot perform tag search."
+    }
+    else {
+        Write-Host "Searching '$outputFile' for exact tag: $findTag..."
+        
+        $data = Get-Content $outputFile -Raw | ConvertFrom-Json
+        
+        $matchingWebcams = $data | Where-Object { 
+            $_.tags -and ($_.tags -contains $findTag)
+        }
+
+        if ($matchingWebcams) {
+            Write-Host "Matching webcams found:"
+            foreach ($cam in $matchingWebcams) {
+                "[$($cam.id)] $($cam.title)"
+            }
+            $matchingWebcams # Output to success stream
+        }
+        else {
+            Write-Warning "No webcams found with exact tag: $findTag"
+        }
+    }
+}
+
+# --- Find By Latitude/Longitude ---
+if ($findLatLong) {
+    Write-Host "`n--- Find Webcams By Latitude/Longitude ---"
+
+    if (-not (Test-Path $outputFile)) {
+        Write-Warning "Cache file '$outputFile' not found. Cannot perform coordinate search."
+    }
+    else {
+        Write-Host "Searching '$outputFile' for coordinates containing: $findLatLong..."
+        
+        $data = Get-Content $outputFile -Raw | ConvertFrom-Json
+        
+        $escapedSearch = [Management.Automation.WildcardPattern]::Escape($findLatLong)
+        $pattern = "*$escapedSearch*"
+        
+        $matchingWebcams = $data | Where-Object { 
+            ($_.latitude -and ($_.latitude -like $pattern)) -or
+            ($_.longitude -and ($_.longitude -like $pattern))
+        }
+
+        if ($matchingWebcams) {
+            Write-Host "Matching webcams found:"
+            foreach ($cam in $matchingWebcams) {
+                "[$($cam.id)] $($cam.title)"
+            }
+            $matchingWebcams # Output to success stream
+        }
+        else {
+            Write-Warning "No webcams found with coordinates containing: $findLatLong"
         }
     }
 }

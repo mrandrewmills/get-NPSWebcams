@@ -26,7 +26,10 @@ Use it to quickly explore, validate, and analyze NPS webcam data without repeate
     [-findByID <String>]
     [-findTitle <String>]
     [-findDescription <String>]
+    [-findCredit <String>]
     [-findStreaming]
+    [-findTag <String>]
+    [-findLatLong <String>]
 ```
 
 ---
@@ -51,20 +54,26 @@ Use it to quickly explore, validate, and analyze NPS webcam data without repeate
   - ID (UUID)
   - Title (case-insensitive substring)
   - Description (case-insensitive substring)
+  - Credit (case-insensitive substring)
+  - Tag (exact case-insensitive match)
+  - Latitude/Longitude (case-insensitive substring)
 
 ---
 
 ## 🧩 Parameters
 
-| Parameter          | Type   | Description                                   |
-| ------------------ | ------ | --------------------------------------------- |
-| `-findDupes`       | Switch | Find duplicate webcam IDs                     |
-| `-findInactive`    | Switch | List webcams with status `"Inactive"`         |
-| `-findActive`      | Switch | List webcams with status `"Active"`           |
-| `-findByID`        | String | Find a webcam by its unique ID (UUID)         |
-| `-findTitle`       | String | Search webcam titles (case-insensitive)       |
-| `-findDescription` | String | Search webcam descriptions (case-insensitive) |
-| `-findStreaming`   | Switch | Show webcams currently streaming              |
+| Parameter          | Type   | Description                                      |
+| ------------------ | ------ | ------------------------------------------------ |
+| `-findDupes`       | Switch | Find duplicate webcam IDs                        |
+| `-findInactive`    | Switch | List webcams with status `"Inactive"`            |
+| `-findActive`      | Switch | List webcams with status `"Active"`              |
+| `-findByID`        | String | Find a webcam by its unique ID (UUID)            |
+| `-findTitle`       | String | Search webcam titles (case-insensitive)          |
+| `-findDescription` | String | Search webcam descriptions (case-insensitive)    |
+| `-findCredit`      | String | Search webcam credit metadata (case-insensitive) |
+| `-findStreaming`   | Switch | Filter webcams currently streaming               |
+| `-findTag`         | String | Filter by exact tag (case-insensitive)           |
+| `-findLatLong`     | String | Search coordinates (case-insensitive substring)   |
 
 ---
 
@@ -118,22 +127,40 @@ $env:NPS_API_KEY = "your-api-key-here"
 .\Get-NPSWebcams.ps1 -findTitle "Dark Sky"
 ```
 
-### 6️⃣ Search by description
+### 6️⃣ Search by credit
+
+```powershell
+.\Get-NPSWebcams.ps1 -findCredit "NPS Photo"
+```
+
+### 7️⃣ Search by description
 
 ```powershell
 .\Get-NPSWebcams.ps1 -findDescription "pandas"
 ```
 
-### 7️⃣ Find by ID
+### 8️⃣ Find by ID
 
 ```powershell
 .\Get-NPSWebcams.ps1 -findByID "7388A31D-219C-4061-9040-272E27893264"
 ```
 
-### 8️⃣ Show streaming webcams
+### 9️⃣ Show streaming webcams
 
 ```powershell
 .\Get-NPSWebcams.ps1 -findStreaming
+```
+
+### 🔟 Filter by tag
+
+```powershell
+.\Get-NPSWebcams.ps1 -findTag "eagle"
+```
+
+### 1️⃣1️⃣ Search by coordinates
+
+```powershell
+.\Get-NPSWebcams.ps1 -findLatLong "42.896, -122.133"
 ```
 
 ---
